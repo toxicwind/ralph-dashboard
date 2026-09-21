@@ -1,5 +1,17 @@
 # Ralph Dashboard
 
+> **toxicwind fork** of [Endogen/ralph-dashboard](https://github.com/Endogen/ralph-dashboard).
+> Yote durability changes on top of upstream `main`:
+> - Project discovery cache TTL 10s -> 300s (`backend/app/projects/service.py`) — the 5s
+>   status-reconcile loop was re-walking the whole project tree every other tick and pinning
+>   workers at ~75% CPU with zero users connected. Discovery still invalidates explicitly on
+>   project register/unregister.
+> - `os.walk` prunes `.archive*` directory prefixes (`backend/app/projects/discovery.py`) —
+>   archive trees are huge and never contain live projects.
+> - `psutil` added to `backend/requirements.txt`; `*.tsbuildinfo` untracked.
+> - Token-scrub entries in `.gitignore` (never commit secrets).
+
+
 A real-time web UI for monitoring, controlling, and analyzing [Ralph](https://ghuntley.com/ralph/) AI agent sessions. Ralph is a technique — in its purest form, a bash loop that feeds a prompt to an AI coding tool over and over, building software iteratively. This dashboard lets you watch it happen live — charts, iteration tracking, plan progress, log streaming, and full process control from your browser.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
