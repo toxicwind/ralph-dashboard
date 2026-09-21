@@ -19,7 +19,12 @@ REGISTERED_PROJECTS_KEY = "registered_project_paths"
 _discovered_paths_cache: list[Path] | None = None
 _discovered_paths_timestamp: float = 0.0
 _discovered_paths_cache_key: tuple[str, ...] | None = None
-_DISCOVERY_CACHE_TTL_SECONDS = 10.0
+# 300s: the 5s status-reconcile loop calls discover_all_project_paths() every tick.
+# A full os.walk of the project roots takes ~2.6s; a 10s TTL meant a fresh walk
+# on ~every other tick, pinning two thread-pool workers at ~75% CPU with zero
+# users connected. Discovery changes rarely (file watcher + explicit
+# invalidation handle updates), so cache aggressively. (yote-surgeon 2026-09-20)
+_DISCOVERY_CACHE_TTL_SECONDS = 300.0
 
 
 class ProjectRegistrationError(Exception):

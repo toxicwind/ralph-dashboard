@@ -17,6 +17,9 @@ IGNORED_DIRS = {
     "__pycache__",
     "node_modules",
 }
+# Prefix-match prunes: archive trees are huge and never contain live projects.
+# Added 2026-09-20 (io-hotspot): whole-home os.walk every 10s was burning 70% CPU.
+IGNORED_DIR_PREFIXES = (".archive",)
 
 
 def discover_project_paths(project_dirs: Iterable[Path] | None = None) -> list[Path]:
@@ -30,7 +33,12 @@ def discover_project_paths(project_dirs: Iterable[Path] | None = None) -> list[P
             continue
 
         for current_root, dirnames, _ in os.walk(resolved_root):
-            dirnames[:] = [name for name in dirnames if name not in IGNORED_DIRS]
+            dirnames[:] = [
+                name
+                for name in dirnames
+                if name not in IGNORED_DIRS
+                and not name.startswith(IGNORED_DIR_PREFIXES)
+            ]
             if ".ralph" in dirnames:
                 discovered.add(Path(current_root).resolve())
                 dirnames.remove(".ralph")
