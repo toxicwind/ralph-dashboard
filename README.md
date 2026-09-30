@@ -1,664 +1,114 @@
-# Ralph Dashboard
+# ralph-dashboard
 
-> **toxicwind fork** of [Endogen/ralph-dashboard](https://github.com/Endogen/ralph-dashboard).
-> Yote durability changes on top of upstream `main`:
-> - Project discovery cache TTL 10s -> 300s (`backend/app/projects/service.py`) — the 5s
->   status-reconcile loop was re-walking the whole project tree every other tick and pinning
->   workers at ~75% CPU with zero users connected. Discovery still invalidates explicitly on
->   project register/unregister.
-> - `os.walk` prunes `.archive*` directory prefixes (`backend/app/projects/discovery.py`) —
->   archive trees are huge and never contain live projects.
-> - `psutil` added to `backend/requirements.txt`; `*.tsbuildinfo` untracked.
-> - Token-scrub entries in `.gitignore` (never commit secrets).
+> **Watch your Ralph agent loops live — charts, iterations, plans, logs, and full process control from the browser.**
 
+<div align="right">
 
-A real-time web UI for monitoring, controlling, and analyzing [Ralph](https://ghuntley.com/ralph/) AI agent sessions. Ralph is a technique — in its purest form, a bash loop that feeds a prompt to an AI coding tool over and over, building software iteratively. This dashboard lets you watch it happen live — charts, iteration tracking, plan progress, log streaming, and full process control from your browser.
+[![license](https://img.shields.io/badge/license-undeclared-lightgrey?style=for-the-badge)](#license--security)
+[![python](https://img.shields.io/badge/python-3.12%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](backend/requirements.txt)
+[![react](https://img.shields.io/badge/react-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](frontend/package.json)
+[![fastapi](https://img.shields.io/badge/fastapi-0.129-009688?style=for-the-badge&logo=fastapi&logoColor=white)](backend/requirements.txt)
+[![fork](https://img.shields.io/badge/toxicwind-fork-7c3aed?style=for-the-badge)](https://github.com/Endogen/ralph-dashboard)
 
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Python](https://img.shields.io/badge/python-3.12+-blue)
-![React](https://img.shields.io/badge/react-19-61dafb)
-![FastAPI](https://img.shields.io/badge/fastapi-0.129-009688)
+</div>
+
+A real-time web UI for monitoring, controlling, and analyzing [Ralph](https://ghuntley.com/ralph/) AI agent sessions. Ralph is a technique — in its purest form, a bash loop that feeds a prompt to an AI coding tool over and over, building software iteratively. This dashboard lets you watch it happen live: project cards with completion status, iteration health timelines, token usage and cost breakdowns, plan progress parsed from `IMPLEMENTATION_PLAN.md`, and expanded iterations with full ANSI-colored terminal output.
+
+**Why care:** agent loops are black boxes — this makes them glass boxes. One glance tells you which project is stuck, which iteration burned tokens, and exactly what the agent did.
+
+> **toxicwind fork** of [Endogen/ralph-dashboard](https://github.com/Endogen/ralph-dashboard), with yote durability fixes on top of upstream `main` (see [Fork changes](#fork-changes-yote-durability)). The fork keeps its own release cadence — `sovereign-projects` holds only the supervision contract.
+
+## Features
+
+- **Live project overview** — stats, progress charts, task burndown, token usage breakdown, iteration health timeline
+- **Iteration tracking** — sortable table (status, health, duration, tokens, cost, tasks) with expandable full terminal output + ANSI rendering
+- **Plan management** — interactive task board with phase progress bars, parsed from `IMPLEMENTATION_PLAN.md`
+- **Process control** — start/stop/steer agent sessions from the browser
+- **Log streaming** — live log tail per project and per iteration
+- **Cost visibility** — token usage and spend per iteration, per project
+- **Auth built in** — JWT sessions, credentials file, token-scrubbed gitignore
+
+## Screenshots
 
 ![Project Overview](docs/screenshots/project-overview.png)
 *Project overview with live stats, progress charts, task burndown, token usage breakdown, and iteration health timeline.*
 
-### More Screenshots
-
 <details>
-<summary>📊 Dashboard & Project List</summary>
+<summary>📊 Dashboard & project list · 📋 Plan board · 🔄 Iteration detail</summary>
 
 ![Dashboard](docs/screenshots/dashboard.png)
 *Project cards with completion status, iteration count, token usage, and cost.*
-</details>
-
-<details>
-<summary>📋 Plan Management</summary>
 
 ![Plan](docs/screenshots/project-plan.png)
-*Interactive task board with phase progress bars, parsed from IMPLEMENTATION_PLAN.md.*
-</details>
-
-<details>
-<summary>🔄 Iteration Tracking</summary>
-
-![Iterations](docs/screenshots/project-iterations.png)
-*Sortable iteration table with status, health, duration, tokens, cost, and tasks.*
+*Interactive task board with phase progress bars.*
 
 ![Iteration Expanded](docs/screenshots/project-iteration-expanded.png)
 *Expanded iteration with full terminal output and ANSI color rendering.*
+
 </details>
 
-<details>
-<summary>📝 Specs & Prompts</summary>
+## Quick start
 
-![Specs](docs/screenshots/project-specs.png)
-*Browse, create, and edit spec files with side-by-side AGENTS.md and PROMPT.md editors.*
-</details>
-
-<details>
-<summary>💻 Code & Git History</summary>
-
-![Code](docs/screenshots/project-code.png)
-*Git commit history with file counts, insertions, and deletions.*
-
-![Code Expanded](docs/screenshots/project-code-expanded.png)
-*Expanded commit with syntax-highlighted diff viewer.*
-</details>
-
-<details>
-<summary>⚙️ Config & System</summary>
-
-![Config](docs/screenshots/project-config.png)
-*Loop configuration — CLI tool, flags, max iterations, and test command.*
-
-![System](docs/screenshots/project-system.png)
-*System metrics — loop process stats, server RAM/CPU/disk usage, and uptime.*
-</details>
-
-<details>
-<summary>🧙 Project Wizard</summary>
-
-![Wizard Setup](docs/screenshots/wizard-step1-setup.png)
-*Step 1: Project setup — name, path, and description.*
-
-![Wizard Agent](docs/screenshots/wizard-step2-agent.png)
-*Step 2: Agent configuration — CLI tool, model, and flags.*
-
-![Wizard Review](docs/screenshots/wizard-step3-review.png)
-*Step 3: Generate & review — AI-powered plan generation.*
-</details>
-
-<details>
-<summary>📦 Archive</summary>
-
-![Archive](docs/screenshots/archive.png)
-*Browse and restore archived projects.*
-</details>
-
-## Start Here
-- [Local Setup](#local-setup)
-- [Server Setup](#server-setup)
-
-## Features
-
-### 📊 Live Overview
-- **Stats grid** — tokens used, estimated cost, iterations completed, success rate, tasks done, error count
-- **Progress timeline** — combined bar + line chart showing task completion and token usage per iteration
-- **Task burndown** — remaining tasks over time with projected completion
-- **Token usage by phase** — pie chart breaking down token spend per implementation phase
-- **Iteration health timeline** — color-coded blocks showing productive / partial / failed outcomes
-- **Recent activity feed** — merged stream of iteration completions, task checkoffs, errors, and notifications
-
-### 📋 Plan Management
-- **Task board** — rendered from `IMPLEMENTATION_PLAN.md` with phase progress, checkmark/hourglass status icons
-- **Phase progress bars** — per-phase completion tracking with task counts
-- **Raw markdown editor** — toggle to edit the plan directly with live save
-- **Task metadata** — shows which iteration completed each task and links to the commit
-
-### 🔄 Iteration Tracking
-- **Sortable table** — 10 columns (#, status, health, duration, tokens, cost, tasks, commit, test)
-- **Expandable log output** — click any iteration to see its full terminal output with ANSI color rendering
-- **Git diff viewer** — syntax-highlighted diffs for each iteration's commit
-- **Health scoring** — automatic classification of iterations as productive, partial, or failed
-
-### 📝 Specs & Prompts
-- **Browse, create, edit, delete** spec markdown files in the project's `specs/` directory
-- **Side-by-side editors** for `AGENTS.md` and `PROMPT.md` directly in the Specs tab
-- **Monaco editor** with markdown syntax highlighting
-
-### 💻 Code
-- **Git history** — browse recent commits with expandable syntax-highlighted diffs
-- **Commit deep-linking** — plan task commit links open the Code tab at that commit
-
-### ⚙️ Config & Injection
-- **Runtime injection** — send instructions to the next loop iteration via `.ralph/inject.md`
-- **Loop configuration** — edit max iterations (including unlimited), CLI tool, flags, and test commands
-
-### 📺 Live Log Streaming
-- **WebSocket-powered** real-time log output with ANSI color support
-- **Virtualized rendering** — handles massive logs without DOM bloat
-- **Search and filter** — find specific text or filter to errors only
-- **Iteration navigation** — jump between iteration markers in the log
-- **Auto-scroll** with pin/unpin toggle
-
-### 📦 Project Archiving
-- **Manual archive/unarchive** — hide inactive projects from the dashboard, restore them anytime
-- **Archive page** — browse archived projects without loading iteration data
-- **Auto-archive** — configurable: automatically archive projects with no activity for N days
-- **Settings panel** — toggle auto-archiving and adjust the inactivity threshold
-
-### 🎮 Process Control
-- **Start / Stop / Pause / Resume** Ralph loops directly from the dashboard
-- **Sticky control bar** — always-visible bottom bar with quick actions
-- **Status detection** — reads `.ralph/ralph.pid` and process state in real time
-
-### 🖥️ System Metrics
-- **Loop process stats** — RAM usage (RSS), CPU %, child process count, PID monitoring
-- **Server metrics** — total/used/available RAM, CPU load averages (1m/5m/15m), disk usage, uptime
-- **Color-coded gauges** — green/amber/red thresholds for resource usage
-- **Auto-refresh** — polls every 5 seconds with live timestamp
-
-### 🔔 Real-Time Updates
-- **WebSocket push** via filesystem watchers (watchdog + inotify)
-- **Live events** — plan updates, iteration completions, status changes, log appends, notifications
-- **Per-project subscriptions** — only receive events for projects you're viewing
-
-### 🚨 Notifications & Attention Signals
-- **Structured notifications** — parses `pending-notification.txt` payloads into typed events with severity, status, details, and iteration context
-- **In-app toasts** — `ERROR`, `BLOCKED`, `DECISION`, `DONE`, and `PLANNING_COMPLETE` alerts surface immediately while the dashboard tab is visible
-- **Browser notifications** — the same alerts can use the Browser Notification API when the tab is in the background
-- **Notification history** — live alerts are deduped and persisted so the activity feed and project page keep prior context
-
-## How Project Tracking Works
-
-The dashboard automatically discovers and tracks Ralph Loop projects — no registration or configuration per project is needed.
-
-### Discovery
-
-On startup (and periodically via filesystem watchers), the dashboard scans all directories listed in `RALPH_PROJECT_DIRS` (default: `~/projects`) recursively. Any directory containing a `.ralph/` subdirectory is recognized as a Ralph Loop project.
-
-```
-~/projects/
-├── my-app/              ← tracked (has .ralph/)
-│   ├── .ralph/
-│   ├── PROMPT.md
-│   └── ...
-├── some-library/        ← NOT tracked (no .ralph/)
-│   └── src/
-└── another-project/     ← tracked (has .ralph/)
-    └── .ralph/
+```bash
+docker compose up --build -d
+# open http://127.0.0.1:8420 — health: GET /api/health
 ```
 
-**That's all you need:** put your project under a scanned directory and make sure the Ralph Loop script has created the `.ralph/` folder. The dashboard picks it up automatically.
+Or run it bare-metal:
 
-### What the dashboard reads
-
-From `.ralph/`:
-
-| File | Purpose |
-|------|---------|
-| `iterations.jsonl` | Structured data per iteration (timing, tokens, tasks, commits, test results) |
-| `ralph.pid` | PID of the running loop process — used to detect running/stopped state |
-| `ralph.log` | Human-readable log output, streamed live via WebSocket |
-| `config.json` | Loop configuration (CLI tool, flags, max iterations, test command) |
-| `pause` | Sentinel file — presence means the loop is paused |
-| `inject.md` | Runtime instructions injected into the next iteration |
-| `pending-notification.txt` | Current pending notification from the agent |
-| `notifications/events.jsonl` | Persisted notification history captured from live alerts |
-
-From the project root:
-
-| File | Purpose |
-|------|---------|
-| `IMPLEMENTATION_PLAN.md` | Task list with completion status, parsed into an interactive board |
-| `AGENTS.md` | Project context and agent instructions |
-| `PROMPT.md` | The prompt template used each iteration |
-| `specs/*.md` | Requirement/design spec files |
-
-### Minimum viable setup
-
-To get a project tracked by the dashboard, you need at minimum:
-
-1. A project directory under one of the `RALPH_PROJECT_DIRS` paths
-2. A `.ralph/` subdirectory inside it (created automatically by `ralph.sh`)
-
-Everything else is optional — the dashboard gracefully handles missing files and shows whatever data is available.
+```bash
+(cd backend && python -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/uvicorn app.main:app --port 8420) &
+(cd frontend && npm ci && npm run dev)
+```
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────┐
-│  Browser (React 19 + Vite 7 + Tailwind 4)    │
-│  ┌──────────┐ ┌──────────┐ ┌─────────────┐   │
-│  │ Zustand  │ │ Recharts │ │   Monaco    │   │
-│  │ stores   │ │ charts   │ │   editor    │   │
-│  └────┬─────┘ └──────────┘ └─────────────┘   │
-│       │  REST + WebSocket                    │
-└───────┼──────────────────────────────────────┘
-        │
-┌───────┼──────────────────────────────────────┐
-│  Nginx (TLS termination, reverse proxy)      │
-└───────┼──────────────────────────────────────┘
-        │
-┌───────┼──────────────────────────────────────┐
-│  FastAPI backend (uvicorn)                   │
-│  ┌──────────┐ ┌───────────┐ ┌────────────┐   │
-│  │ REST API │ │ WebSocket │ │  File      │   │
-│  │ routes   │ │ hub       │ │  watcher   │   │
-│  └──────────┘ └───────────┘ └────────────┘   │
-│  ┌──────────┐ ┌───────────┐ ┌────────────┐   │
-│  │ Plan     │ │ Iteration │ │  Git       │   │
-│  │ parser   │ │ parser    │ │  service   │   │
-│  └──────────┘ └───────────┘ └────────────┘   │
-│  ┌──────────┐ ┌───────────┐ ┌────────────┐   │
-│  │ Process  │ │ Stats &   │ │  JWT auth  │   │
-│  │ manager  │ │ projector │ │  (SQLite)  │   │
-│  └──────────┘ └───────────┘ └────────────┘   │
-└───────┼──────────────────────────────────────┘
-        │
-┌───────┼──────────────────────────────────────┐
-│  Filesystem                                  │
-│  ~/projects/                                 │
-│    ├── my-project/                           │
-│    │   ├── .ralph/                           │
-│    │   │   ├── ralph.log        (log output) │
-│    │   │   ├── ralph.pid        (process id) │
-│    │   │   ├── iterations.jsonl (structured) │
-│    │   │   ├── config.json      (loop config)│
-│    │   │   └── inject.md        (runtime msg)│
-│    │   ├── IMPLEMENTATION_PLAN.md            │
-│    │   ├── AGENTS.md                         │
-│    │   ├── PROMPT.md                         │
-│    │   └── specs/*.md                        │
-│    └── another-project/                      │
-│        └── .ralph/ ...                       │
-└──────────────────────────────────────────────┘
+```mermaid
+graph TD
+    UI["frontend/ — React 19 + Vite + Tailwind"] -->|REST + WS| API["backend/app — FastAPI"]
+    API --> SVC["projects/service.py — discovery cache (TTL 300s)"]
+    API --> ITER["iterations — run tracking, health, token accounting"]
+    API --> PLANS["plans — IMPLEMENTATION_PLAN.md parsing"]
+    SVC --> DISK["/projects — watched project dirs"]
+    API --> DB[("data/ — sqlite (untracked)")]
 ```
 
-## Tech Stack
+| Path | Owns |
+|---|---|
+| `backend/app` | FastAPI service: projects, iterations, plans, logs, auth |
+| `backend/app/projects/service.py` | project discovery with 300s cache (yote fix) |
+| `backend/app/projects/discovery.py` | `os.walk` tree scan, prunes `.archive*` (yote fix) |
+| `frontend/src` | React 19 dashboard UI (Vite + Tailwind) |
+| `data/` | runtime sqlite + credentials (untracked, never commit) |
+| `docs/screenshots/` | UI screenshots used above |
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 19, Vite 7, TypeScript 5.9, Tailwind CSS 4, shadcn/ui |
-| **Charts** | Recharts 3 |
-| **Editor** | Monaco Editor (via @monaco-editor/react) |
-| **State** | Zustand 5 |
-| **Routing** | React Router 7 |
-| **Backend** | Python 3.12+, FastAPI 0.129, Uvicorn |
-| **Database** | SQLite (via aiosqlite) — auth & settings only |
-| **File Watching** | watchdog (inotify on Linux) |
-| **Git** | GitPython |
-| **Auth** | JWT (python-jose) + bcrypt (passlib) |
-| **System Metrics** | psutil |
-| **Reverse Proxy** | Nginx with Let's Encrypt TLS |
+### Fork changes (yote durability)
 
-## Local Setup
+- Project discovery cache TTL 10s → 300s (`backend/app/projects/service.py`) — the 5s status-reconcile loop was re-walking the whole project tree every other tick and pinning workers at ~75% CPU with zero users connected. Discovery still invalidates explicitly on project register/unregister.
+- `os.walk` prunes `.archive*` directory prefixes (`backend/app/projects/discovery.py`) — archive trees are huge and never contain live projects.
+- `psutil` added to `backend/requirements.txt`; `*.tsbuildinfo` untracked.
+- Token-scrub entries in `.gitignore` (never commit secrets).
 
-### Prerequisites
-- Python 3.12+
-- Git
-- Node.js 22+ and npm (only needed if frontend assets are missing, or when developing the frontend)
-- An AI coding CLI if you plan to run loops from this machine ([Codex](https://github.com/openai/codex), [Claude Code](https://github.com/anthropics/claude-code), etc.)
+## Config
 
-> **Note:** When running as a systemd service, the service gets a minimal `PATH` that may not include user-installed CLIs (e.g. `~/.npm-global/bin`). If the wizard reports that `codex` or `claude` is not found, symlink it into a system-wide path:
-> ```bash
-> sudo ln -sf $(which codex) /usr/local/bin/codex
-> ```
+| Variable | Purpose |
+|---|---|
+| `RALPH_CREDENTIALS_FILE` | path to credentials yaml (default `/data/credentials.yaml`) |
+| `RALPH_DB_DIR` | sqlite dir (default `/data`) |
+| `RALPH_PROJECT_DIRS` | watched project roots (default `/projects`) |
+| `RALPH_JWT_SECRET` | JWT signing secret — **set this, never ship the default** |
 
-### Step 1: Install CLI and dependencies (once)
+## Dev
 
 ```bash
-git clone https://github.com/Endogen/ralph-dashboard.git
-cd ralph-dashboard
-./scripts/install.sh
+(cd backend && .venv/bin/pytest)          # backend tests
+(cd frontend && npm run lint && npm run build)  # frontend lint + build
 ```
 
-`scripts/install.sh` creates/updates `backend/.venv`, installs the `ralph-dashboard` CLI wrapper in `~/.local/bin`, and packages frontend assets when possible.
+Live topology on yote: working copy `/home/toxic/ralph-dashboard` (branch `main`), backend on `127.0.0.1:25194` via pitchfork daemon `sovereign/ralph-dashboard` (`boot_start=true`, `retry=true`). See [ADOPTION.md](ADOPTION.md) for the canonical-home record.
 
-If your default `python3` is not 3.12+, choose an interpreter explicitly:
+## License + security
 
-```bash
-./scripts/install.sh --python python3.12
-# or:
-PYTHON_BIN=python3.12 ./scripts/install.sh
-```
-
-If `ralph-dashboard` is not found after install, ensure `~/.local/bin` is on your `PATH`.
-
-Choose one run method below. Each method includes `ralph-dashboard init`.
-
-### Method 1: Linux user service (recommended)
-
-```bash
-# Creates ~/.config/ralph-dashboard/env + credentials (first run)
-ralph-dashboard init
-ralph-dashboard doctor
-ralph-dashboard service install --user --start
-```
-
-Useful service commands:
-
-```bash
-ralph-dashboard service status
-ralph-dashboard service logs -f
-ralph-dashboard service stop
-ralph-dashboard service start
-```
-
-Open `http://127.0.0.1:8420` (or your configured `RALPH_PORT`) and log in.
-
-### Method 2: macOS launchd user agent
-
-```bash
-# Creates ~/.config/ralph-dashboard/env + credentials (first run)
-ralph-dashboard init
-ralph-dashboard doctor
-ralph-dashboard launchd install --start
-```
-
-Useful launchd commands:
-
-```bash
-ralph-dashboard launchd status
-ralph-dashboard launchd logs -f
-ralph-dashboard launchd stop
-ralph-dashboard launchd start
-```
-
-### Method 3: Manual run (macOS or Linux)
-
-```bash
-# Creates ~/.config/ralph-dashboard/env + credentials (first run)
-ralph-dashboard init
-ralph-dashboard doctor
-
-set -a
-source ~/.config/ralph-dashboard/env
-set +a
-cd backend
-.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port "$RALPH_PORT"
-```
-
-### Method 4: Dashboard development workflow
-
-Use this when actively developing `ralph-dashboard` itself:
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-
-cd ../frontend
-npm install --legacy-peer-deps
-
-# Build frontend and package into backend/app/static/dist
-cd ..
-ralph-dashboard build-frontend
-
-# Creates ~/.config/ralph-dashboard/env + credentials (first run)
-ralph-dashboard init
-ralph-dashboard doctor
-```
-
-## Server Setup
-
-Use this for a persistent deployment on a Linux host.
-
-### Prerequisites
-- Linux server (Ubuntu 22.04+ recommended)
-- Python 3.12+
-- Git
-- Node.js 22+ and npm (only needed when frontend assets are not pre-packaged)
-
-### Method 1: Server install + systemd user service
-
-```bash
-git clone https://github.com/Endogen/ralph-dashboard.git
-cd ralph-dashboard
-./scripts/install.sh
-ralph-dashboard init
-ralph-dashboard doctor
-ralph-dashboard service install --user --start
-```
-
-This writes `~/.config/systemd/user/ralph-dashboard.service`, reloads the user daemon, enables the unit, and starts it.
-
-If the service should survive logout/reboot, enable linger once:
-
-```bash
-sudo loginctl enable-linger "$USER"
-```
-
-### Method 1A: Non-interactive bootstrap (automation)
-
-Use this when provisioning a server from CI/cloud-init/Ansible.
-
-```bash
-RALPH_ADMIN_USER="admin"
-RALPH_ADMIN_PASSWORD="change-me-now"
-
-ralph-dashboard init \
-  --project-dirs /srv/projects \
-  --port 8420 \
-  --username "$RALPH_ADMIN_USER" \
-  --password "$RALPH_ADMIN_PASSWORD" \
-  --password-confirm "$RALPH_ADMIN_PASSWORD" \
-  --force
-
-ralph-dashboard doctor
-ralph-dashboard service install --user --start
-```
-
-This avoids interactive prompts and auto-generates `RALPH_SECRET_KEY` when omitted. If you need to inject a managed secret, pass `--secret-key "$RALPH_SECRET_KEY"` explicitly.
-
-### Method 2: Reverse proxy + TLS (internet-facing)
-
-Complete Method 1 or Method 1A first (both run `ralph-dashboard init`).
-
-An example nginx config is included at `scripts/nginx/ralph.xian.technology.conf`. Copy it to `/etc/nginx/sites-available/`, adjust domain/certificate paths, symlink to `sites-enabled`, and reload:
-
-```bash
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-Issue certificates with Let's Encrypt:
-
-```bash
-sudo certbot --nginx -d your.domain.com
-```
-
-## Runtime Configuration (Advanced)
-
-Most users should not set env vars manually. Use `ralph-dashboard init` and let it generate runtime config files:
-
-- `~/.config/ralph-dashboard/env`
-- `~/.config/ralph-dashboard/credentials.yaml`
-
-Ralph uses `~/.config/ralph-dashboard/env` by default (not a repo-local `.env` file).
-
-If you need to manage values manually, use this reference:
-
-| Environment Variable | Required | Default | Description |
-|---------------------|----------|---------|-------------|
-| `RALPH_SECRET_KEY` | Yes | *(none)* | JWT signing key. Auto-generated by `ralph-dashboard init`; if set manually, use a secure random value. |
-| `RALPH_PROJECT_DIRS` | No | `~/projects` | Project root directories to scan for `.ralph/` projects (path-separated or comma-separated). |
-| `RALPH_PORT` | No | `8420` | Backend server port. |
-| `RALPH_CREDENTIALS_FILE` | No | `~/.config/ralph-dashboard/credentials.yaml` | Path to dashboard credentials file. |
-| `RALPH_FRONTEND_DIST` | No | *(auto-detected)* | Optional override for frontend dist directory served by FastAPI. |
-
-Tracked template: `.env.example`
-
-Example env file:
-
-```bash
-# ~/.config/ralph-dashboard/env
-RALPH_SECRET_KEY=replace-with-random-secret
-RALPH_PROJECT_DIRS=/home/you/projects
-RALPH_PORT=8420
-RALPH_CREDENTIALS_FILE=/home/you/.config/ralph-dashboard/credentials.yaml
-```
-
-## Connect Ralph Loop Projects (Local or Server)
-
-The dashboard discovers projects under `RALPH_PROJECT_DIRS` that contain a `.ralph/` directory.
-
-### 1. Copy the loop script
-
-```bash
-cp scripts/ralph.sh ~/ralph.sh
-chmod +x ~/ralph.sh
-```
-
-### 2. Create a project
-
-```bash
-mkdir -p ~/projects/my-project
-cd ~/projects/my-project
-
-cat > AGENTS.md << 'EOF'
-# My Project
-
-## Build Commands
-- Build: `npm run build`
-- Test: `npm test`
-- Lint: `npx eslint .`
-EOF
-
-cat > PROMPT.md << 'EOF'
-You are building my-project. Read AGENTS.md for context.
-Follow IMPLEMENTATION_PLAN.md for tasks.
-Work on one task per iteration.
-EOF
-
-cat > IMPLEMENTATION_PLAN.md << 'EOF'
-# Implementation Plan
-
-STATUS: IN PROGRESS
-
-## Phase 1: Setup
-- [ ] 1.1: Initialize project structure
-- [ ] 1.2: Add core dependencies
-EOF
-
-git init && git add -A && git commit -m "initial"
-```
-
-### 3. Start a Ralph loop
-
-```bash
-cd ~/projects/my-project
-
-# Uses Codex by default
-~/ralph.sh 10
-
-# Example with another CLI
-RALPH_CLI=claude-code ~/ralph.sh 10
-```
-
-The loop creates `.ralph/` automatically. Refresh the dashboard and the project should appear.
-
-## Project Structure
-
-```
-ralph-dashboard/
-├── .env.example               # Template for runtime environment variables
-├── backend/                   # FastAPI backend
-│   ├── app/
-│   │   ├── auth/              # JWT authentication & user management
-│   │   ├── cli/               # `ralph-dashboard` operational CLI
-│   │   ├── control/           # Process lifecycle (start/stop/pause/inject)
-│   │   ├── files/             # AGENTS.md, PROMPT.md, specs CRUD
-│   │   ├── git_service/       # Git log & diff via GitPython
-│   │   ├── iterations/        # Log & JSONL iteration parsers
-│   │   ├── notifications/     # Notification parsing and history
-│   │   ├── plan/              # IMPLEMENTATION_PLAN.md parser
-│   │   ├── projects/          # Project discovery, registration, status
-│   │   ├── stats/             # Aggregation, projections, reports
-│   │   ├── system/            # System & process metrics (psutil)
-│   │   ├── ws/                # WebSocket hub, file watcher, event dispatcher
-│   │   └── static/            # Optional packaged frontend dist for no-Node installs
-│   └── tests/                 # Pytest suite
-├── frontend/                  # React SPA
-│   └── src/
-│       ├── api/               # API client with auth refresh
-│       ├── components/
-│       │   ├── charts/        # Recharts visualizations
-│       │   ├── layout/        # Page shells, top bar, control bar
-│       │   ├── project/       # Tab content components
-│       │   └── ui/            # shadcn/ui primitives
-│       ├── hooks/             # WebSocket hook
-│       ├── lib/               # Utilities
-│       ├── stores/            # Zustand state stores
-│       └── types/             # TypeScript type definitions
-├── scripts/
-│   ├── install.sh             # One-command local installer
-│   ├── package_frontend.sh    # Copies built frontend into backend static dist
-│   ├── ralph.sh               # Ralph loop runner script
-│   └── nginx/                 # Example nginx config
-└── specs/                     # Design specification documents
-```
-
-## API Overview
-
-All API endpoints are under `/api/` and require a Bearer JWT token except `/api/health`, `/api/auth/login`, and `/api/auth/refresh`.
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/health` | Health check |
-| `POST` | `/api/auth/login` | Login (returns access + refresh tokens) |
-| `POST` | `/api/auth/refresh` | Refresh access token |
-| `GET` | `/api/projects` | List active projects (default; excludes archived) |
-| `POST` | `/api/projects` | Register an existing Ralph project path |
-| `GET` | `/api/projects/archived` | List archived projects |
-| `GET/PUT` | `/api/projects/archive/settings` | Auto-archive configuration |
-| `POST` | `/api/projects/{project_id}/archive` | Archive a project |
-| `POST` | `/api/projects/{project_id}/unarchive` | Unarchive a project |
-| `GET` | `/api/projects/{project_id}` | Project detail |
-| `DELETE` | `/api/projects/{project_id}` | Unregister a project |
-| `GET` | `/api/projects/{project_id}/plan` | Parsed implementation plan |
-| `PUT` | `/api/projects/{project_id}/plan` | Update plan markdown |
-| `GET` | `/api/projects/{project_id}/iterations` | List iterations (filterable, sortable, paginated) |
-| `GET` | `/api/projects/{project_id}/iterations/details?numbers=1&numbers=2` | Fetch details for multiple iterations in one request |
-| `GET` | `/api/projects/{project_id}/iterations/{iteration_number}` | Iteration detail with log output |
-| `GET` | `/api/projects/{project_id}/stats` | Aggregated stats & projections |
-| `GET` | `/api/projects/{project_id}/report` | Generated project summary report |
-| `GET` | `/api/projects/{project_id}/system` | System & process metrics |
-| `GET` | `/api/projects/{project_id}/notifications` | Current pending notification plus persisted history |
-| `GET` | `/api/projects/{project_id}/git/log` | Commit history |
-| `GET` | `/api/projects/{project_id}/git/diff/{commit_hash}` | Commit diff |
-| `GET/PUT` | `/api/projects/{project_id}/files/{filename}` | Read/write `AGENTS.md` or `PROMPT.md` |
-| `GET` | `/api/projects/{project_id}/specs` | List spec files |
-| `POST` | `/api/projects/{project_id}/specs` | Create a spec file |
-| `GET` | `/api/projects/{project_id}/specs/{name}` | Read a spec file |
-| `PUT` | `/api/projects/{project_id}/specs/{name}` | Update a spec file |
-| `DELETE` | `/api/projects/{project_id}/specs/{name}` | Delete a spec file |
-| `GET/PUT` | `/api/projects/{project_id}/config` | Read or update loop configuration |
-| `POST` | `/api/projects/{project_id}/inject` | Send a runtime instruction |
-| `POST` | `/api/projects/{project_id}/start` | Start Ralph loop with optional runtime overrides |
-| `POST` | `/api/projects/{project_id}/stop` | Stop Ralph loop |
-| `POST` | `/api/projects/{project_id}/pause` | Pause loop |
-| `POST` | `/api/projects/{project_id}/resume` | Resume loop |
-| `GET` | `/api/wizard/templates` | Fetch default wizard templates |
-| `POST` | `/api/wizard/generate/start` | Start async wizard generation |
-| `GET` | `/api/wizard/generate/status/{request_id}` | Poll wizard generation status |
-| `POST` | `/api/wizard/generate/cancel` | Cancel an in-flight wizard generation request |
-| `POST` | `/api/wizard/create` | Create a project from wizard output |
-| `WS` | `/api/ws?token=...` | WebSocket for real-time events |
-
-## Running Tests
-
-```bash
-cd backend
-source .venv/bin/activate
-pytest tests/ -q
-```
-
-```bash
-cd frontend
-npm test
-```
-
-## License
-
-MIT
+- **License:** none declared — neither upstream ([Endogen/ralph-dashboard](https://github.com/Endogen/ralph-dashboard)) nor this fork ships a LICENSE file. Treat the code as all-rights-reserved until a license lands.
+- **Secrets:** configure via environment / `RALPH_CREDENTIALS_FILE`; `data/` is untracked; `.gitignore` scrubs tokens. Never commit `credentials.yaml`.
+- **Network:** binds `127.0.0.1` by default (compose maps `127.0.0.1:8420`) — not exposed to LAN unless you change it.
