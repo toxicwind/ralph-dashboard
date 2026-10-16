@@ -422,7 +422,7 @@ ralph-dashboard doctor
 ralph-dashboard service install --user --start
 ```
 
-This writes `~/.config/systemd/user/ralph-dashboard.service`, reloads the user daemon, enables the unit, and starts it.
+This writes `~/.config/systemd/user/ralph-dashboard.service`, reloads the architect daemon, enables the unit, and starts it.
 
 If the service should survive logout/reboot, enable linger once:
 
