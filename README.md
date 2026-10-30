@@ -16,7 +16,7 @@ A real-time web UI for monitoring, controlling, and analyzing [Ralph](https://gh
 
 **Why care:** agent loops are black boxes — this makes them glass boxes. One glance tells you which project is stuck, which iteration burned tokens, and exactly what the agent did.
 
-> **toxicwind fork** of [Endogen/ralph-dashboard](https://github.com/Endogen/ralph-dashboard), with yote durability fixes on top of upstream `main` (see [Fork changes](#fork-changes-yote-durability)). The fork keeps its own release cadence — `sovereign-projects` holds only the supervision contract.
+> **toxicwind fork** of [Endogen/ralph-dashboard](https://github.com/Endogen/ralph-dashboard), with yote durability fixes on top of upstream `main` (see [Fork changes](#fork-changes-yote-durability)). The fork keeps its own release cadence — `estate-projects` holds only the supervision contract.
 
 ## Features
 
@@ -105,7 +105,7 @@ graph TD
 (cd frontend && npm run lint && npm run build)  # frontend lint + build
 ```
 
-Live topology on yote: working copy `/home/toxic/ralph-dashboard` (branch `main`), backend on `127.0.0.1:25194` via pitchfork daemon `sovereign/ralph-dashboard` (`boot_start=true`, `retry=true`). See [ADOPTION.md](ADOPTION.md) for the canonical-home record.
+Live topology on yote: working copy `/home/toxic/ralph-dashboard` (branch `main`), backend on `127.0.0.1:25194` via pitchfork daemon `estate/ralph-dashboard` (`boot_start=true`, `retry=true`). See [ADOPTION.md](ADOPTION.md) for the canonical-home record.
 
 ## License + security
 
